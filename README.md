@@ -1,173 +1,387 @@
-# WaLiSSH - AI 驱动的 SSH 智能运维平台
+<div align="center">
 
-WaLiSSH 是一个 AI 驱动的 SSH 终端与服务器运维平台。通过自然语言对话，让 AI 自动执行远程命令、诊断问题、安装软件、排查故障，像一位资深 SRE 工程师一样运维你的服务器。
+# WaLiSSH
 
-## 核心特性
+**AI-Powered SSH Terminal & Server Operations Platform**
 
-- **AI 智能运维** — 基于 ReAct 循环的 AI Agent，自动规划→执行→观察→迭代，完成复杂运维任务
-- **SSH 远程终端** — 基于 xterm.js 的全功能终端，支持命令执行、交互式 Shell、窗口自适应
-- **远程文件管理** — SFTP 文件浏览、Monaco 编辑器在线编辑、上传下载、sudo 权限回退
-- **VS Code 风格 UI** — 终端 + 文件管理器 + AI 对话面板三合一的桌面 IDE 界面
-- **安全优先** — SSH 连接和 AI 操作统一在服务端，集中风险管控，危险命令自动拦截
-- **MCP 协议支持** — 支持 Local / SSE / Stdio 三种 MCP 工具接入方式
+An intelligent SSH operations platform that combines a desktop terminal with AI Agent capabilities. Manage remote servers through natural language conversations — diagnose issues, install software, troubleshoot failures, and execute commands autonomously.
 
-## 项目结构
+[![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.3-6DB33F?logo=spring-boot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Tauri](https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri&logoColor=black)](https://tauri.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[English](#features) | [中文](#特性)
+
+</div>
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Features
+
+### Core Capabilities
+
+| Feature | Description |
+|---------|-------------|
+| **AI-Powered Operations** | ReAct-based Agent that autonomously plans, executes, observes, and iterates to complete complex ops tasks |
+| **SSH Remote Terminal** | Full-featured terminal powered by xterm.js with interactive shell, tab completion, and color output |
+| **Remote File Manager** | SFTP file browsing, Monaco Editor inline editing, upload/download with sudo privilege fallback |
+| **VS Code-style UI** | Integrated IDE layout with terminal, file explorer, and AI chat panel in a single desktop app |
+| **Security First** | SSH connections and AI operations centralized on the server side; dangerous command interception built-in |
+| **MCP Protocol** | Extensible tool integration via Local, SSE, and Stdio MCP (Model Context Protocol) transports |
+
+### AI Agent System
+
+- **ReAct Loop** — Reasoning + Acting cycle with configurable max steps (50) and tool calls (200)
+- **Dangerous Command Detection** — Automatically blocks `rm -rf /`, `dd`, `mkfs`, and other destructive commands
+- **Dual-layer Intent Recognition** — Rule-based engine (<1ms) as first pass, LLM fallback (100-500ms) for complex queries
+- **Provider-Reducer Context Management** — Modular context collection with priority-based and sliding-window message trimming
+- **Dynamic Prompt Enhancement** — Injects server environment info, milestones, recent commands, and tool results into prompts
+
+### SSH & Terminal
+
+- Password and private key authentication (AES-256-GCM encrypted credential storage)
+- Heartbeat keep-alive with automatic connection health detection
+- Dual-buffer isolation for AI command execution vs. frontend polling
+- Large file chunked reading with automatic sudo privilege escalation
+
+---
+
+## Architecture
 
 ```
-smart-ssh-shell/
-├── walissh-client/           # Tauri 桌面客户端
-│   ├── src/                  # React + TypeScript 前端
-│   │   ├── api/              # REST API 调用层
-│   │   ├── components/       # UI 组件
-│   │   ├── views/            # 页面视图 (MainView 为主布局)
-│   │   ├── stores/           # Zustand 状态管理
-│   │   └── types/            # TypeScript 类型定义
-│   └── src-tauri/            # Rust/Tauri 原生层
-│
-├── walissh-server/           # Spring Boot 后端
-│   ├── walissh-server-api/        # 接口契约与 DTO
-│   ├── walissh-server-trigger/    # REST Controller
-│   ├── walissh-server-case/       # ReAct 用例编排层
-│   ├── walissh-server-domain/     # 核心领域层 (Agent/SSH)
-│   ├── walissh-server-infrastructure/  # 基础设施 (SSH I/O/DB)
-│   ├── walissh-server-types/      # 公共类型与异常
-│   └── walissh-server-app/        # 启动入口与配置
-│
-└── docs/
-    └── architecture-analysis.md  # 深度架构分析文档
+┌───────────────────────────────────────────────────┐
+│           Tauri Desktop Client                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐ │
+│  │ Terminal  │  │  File    │  │   AI Chat Panel  │ │
+│  │ (xterm)  │  │ Explorer │  │ (ReAct Streaming)│ │
+│  └──────────┘  └──────────┘  └──────────────────┘ │
+└──────────────────────┬────────────────────────────┘
+                       │ REST API / SSE
+┌──────────────────────▼────────────────────────────┐
+│           Spring Boot Server (DDD)                 │
+│  ┌─────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │ Trigger │→ │   Case   │→ │     Domain       │  │
+│  │ (REST)  │  │ (ReAct)  │  │ (Agent / SSH)    │  │
+│  └─────────┘  └──────────┘  └────────┬─────────┘  │
+│                                       │            │
+│  ┌────────────────────────────────────▼──────────┐ │
+│  │         Infrastructure (JSch / MyBatis)       │ │
+│  └───────────────────────────────────────────────┘ │
+└──────────────────────┬────────────────────────────┘
+                       │ OpenAI-compatible API
+                 ┌─────▼─────┐
+                 │   LLM     │
+                 └───────────┘
 ```
 
-## 技术栈
+> For a detailed architecture analysis including framework responsibilities, call chains, and optimization recommendations, see [docs/architecture-analysis.md](docs/architecture-analysis.md).
 
-### 客户端
+<!-- Screenshot placeholder -->
+<!-- ![WaLiSSH Screenshot](docs/images/screenshot.png) -->
 
-| 层面 | 技术 |
-|------|------|
-| 桌面框架 | Tauri 2 (Rust + Web) |
-| 前端 | React 19 + TypeScript 5.8 |
-| 构建 | Vite 7 |
-| 样式 | Tailwind CSS 4 |
-| 状态管理 | Zustand 5 |
-| 终端 | xterm.js 6 (WebGL) |
-| 编辑器 | Monaco Editor |
+---
 
-### 服务端
+## Tech Stack
 
-| 层面 | 技术 |
-|------|------|
-| 语言 | Java 17 |
-| 框架 | Spring Boot 3.4.3 |
-| 架构 | DDD 领域驱动设计 (7 模块) |
-| AI Agent | Google ADK 1.2.0 + Spring AI 1.1.5 |
-| 工具协议 | MCP (Model Context Protocol) |
-| SSH | JSch |
-| 数据库 | MySQL + MyBatis |
-| 设计模式 | 策略树路由 (xfg-wrench) |
+### Client
 
-## 架构概览
+| Layer | Technology |
+|-------|------------|
+| Desktop | [Tauri 2](https://tauri.app/) (Rust + Web) |
+| Language | TypeScript 5.8 |
+| UI Framework | [React 19](https://react.dev/) |
+| Build Tool | [Vite 7](https://vite.dev/) |
+| Styling | [Tailwind CSS 4](https://tailwindcss.com/) |
+| State | [Zustand 5](https://zustand-demo.pmnd.rs/) |
+| Terminal | [xterm.js 6](https://xtermjs.org/) (WebGL renderer) |
+| Editor | [Monaco Editor](https://microsoft.github.io/monaco-editor/) |
 
-```
-┌─────────────────────────────────────────┐
-│  Tauri 桌面客户端 (React + xterm.js)    │
-│  终端 | 文件管理 | AI 对话面板           │
-└──────────────────┬──────────────────────┘
-                   │ REST API / SSE
-┌──────────────────▼──────────────────────┐
-│  Spring Boot 后端 (DDD 7 模块)          │
-│  ┌────────┐  ┌──────────┐  ┌─────────┐ │
-│  │Trigger │→ │  Case    │→ │ Domain  │ │
-│  │(REST)  │  │(ReAct)   │  │(Agent/  │ │
-│  │        │  │          │  │ SSH)    │ │
-│  └────────┘  └──────────┘  └────┬────┘ │
-│                                 │       │
-│  ┌──────────────────────────────▼─────┐ │
-│  │ Infrastructure (SSH I/O / MySQL)   │ │
-│  └────────────────────────────────────┘ │
-└──────────────────┬──────────────────────┘
-                   │ OpenAI API
-             ┌─────▼─────┐
-             │  LLM 模型  │
-             └───────────┘
-```
+### Server
 
-## 快速开始
+| Layer | Technology |
+|-------|------------|
+| Language | Java 17 |
+| Framework | [Spring Boot 3.4.3](https://spring.io/projects/spring-boot) |
+| Architecture | DDD (Domain-Driven Design), 7 Maven modules |
+| AI Agent | [Google ADK 1.2.0](https://google.github.io/adk-docs/) + [Spring AI 1.1.5](https://docs.spring.io/spring-ai/reference/) |
+| Tool Protocol | [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) |
+| SSH | [JSch](http://www.jcraft.com/jsch/) |
+| Database | MySQL 8.0 + [MyBatis](https://mybatis.org/mybatis-3/) |
+| Design Pattern | Strategy Tree Router (xfg-wrench) |
 
-### 环境要求
+---
 
-| 组件 | 版本 |
-|------|------|
-| JDK | 17+ |
-| Maven | 3.8+ |
-| MySQL | 8.0+ |
-| Node.js | 22+ |
-| Rust | latest stable |
-| Tauri CLI | 2.x |
+## Prerequisites
 
-### 1. 启动服务端
+| Component | Version | Notes |
+|-----------|---------|-------|
+| JDK | 17+ | [Download](https://adoptium.net/) |
+| Maven | 3.8+ | [Download](https://maven.apache.org/download.cgi) |
+| MySQL | 8.0+ | [Download](https://dev.mysql.com/downloads/) |
+| Node.js | 22+ | [Download](https://nodejs.org/) |
+| Rust | stable | [Install](https://rustup.rs/) |
+| Tauri CLI | 2.x | `cargo install tauri-cli` |
+
+---
+
+## Quick Start
+
+### 1. Database Setup
 
 ```bash
-# 创建数据库
+# Create database
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS walissh DEFAULT CHARSET utf8mb4;"
+```
 
-# 修改数据库连接配置
-# walissh-server/walissh-server-app/src/main/resources/application-dev.yml
+### 2. Server Configuration
 
-# 构建并启动
+Edit the database connection in `walissh-server/walissh-server-app/src/main/resources/application-dev.yml`:
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/walissh?useUnicode=true&characterEncoding=utf8&autoReconnect=true&serverTimezone=UTC
+    username: root
+    password: your_password
+```
+
+### 3. Build & Start Server
+
+```bash
 cd walissh-server
 mvn clean install -DskipTests
 java -jar walissh-server-app/target/walissh-server-app.jar
 ```
 
-服务端默认运行在 `http://localhost:8091`。
+Server starts at `http://localhost:8091`.
 
-### 2. 启动客户端
+### 4. Start Client
 
-```bash
-# Windows
+**Windows:**
+
+```cmd
 cd walissh-client
 docs\dev-ops\start-dev.bat
+```
 
-# macOS / Linux
+**macOS / Linux:**
+
+```bash
 cd walissh-client
 chmod +x docs/dev-ops/start-dev.sh
 ./docs/dev-ops/start-dev.sh
 ```
 
-### 3. 配置 LLM
+### 5. Verify
 
-在 `walissh-server/walissh-server-app/src/main/resources/agent/ssh-agent.yml` 中配置 AI API：
+```bash
+# Check server health
+curl http://localhost:8091/api/v1/query_ai_agent_config_list
+
+# Expected response:
+# {"code":"0000","info":"success","data":[{"agentId":"100000","agentName":"SSH AI Agent",...}]}
+```
+
+---
+
+## Configuration
+
+### LLM Provider
+
+Configure your AI model in `walissh-server/walissh-server-app/src/main/resources/agent/ssh-agent.yml`:
 
 ```yaml
 module:
   aiApi:
-    base-url: https://your-api-endpoint
-    api-key: your-api-key
+    base-url: https://your-api-endpoint    # OpenAI-compatible API URL
+    api-key: sk-your-api-key               # API key
+    completions-path: v1/chat/completions
+    embeddings-path: v1/embeddings
   chatModel:
-    model: gpt-4o
+    model: gpt-4o                          # Model name
 ```
 
-## 功能说明
+### Agent Behavior
 
-### SSH 连接管理
-- 支持密码和密钥两种认证方式
-- 心跳保活机制，自动检测连接状态
-- SSH 凭证 AES-256-GCM 加密存储
+The same YAML file configures the AI agent's system prompt, tools, and workflow:
 
-### AI Agent
-- 基于 ReAct 循环的智能体，自动推理→执行→观察→迭代
-- 内置危险命令拦截（`rm -rf /`、`dd`、`mkfs` 等）
-- 双层意图识别：规则引擎（<1ms）优先 + LLM 兜底
-- Provider-Reducer 上下文管理，自动裁剪对话历史
+```yaml
+module:
+  agents:
+    - name: sshOperator
+      description: "SSH command execution agent"
+      instruction: |
+        You are a senior Linux SRE with 10+ years of experience...
+      output-key: ssh_result
+  runner:
+    agent-name: sshOperator
+```
 
-### 终端功能
-- 交互式 Shell，支持 Tab 补全、颜色输出
-- AI 命令执行双缓冲隔离，避免前端/AI 输出竞争
-- 大文件分块读取，sudo 权限自动回退
+### Server Port
 
-## 文档
+Change the server port in `application-dev.yml`:
 
-- [深度架构分析](docs/architecture-analysis.md) — 框架分工、调用链路、优化建议
+```yaml
+server:
+  port: 8091
+```
+
+### Encryption Key
+
+For production, set the SSH credential encryption key via environment variable:
+
+```bash
+export WALISSH_SECRET_KEY=your-256-bit-key
+```
+
+---
+
+## Project Structure
+
+```
+smart-ssh-shell/
+├── walissh-client/                    # Tauri Desktop Client
+│   ├── src/
+│   │   ├── api/                       # REST API layer (agent, ssh, terminal, file)
+│   │   ├── components/                # Reusable UI components
+│   │   ├── views/                     # Page-level views (MainView = primary layout)
+│   │   ├── stores/                    # Zustand state (connection, agent, file, theme)
+│   │   └── types/                     # TypeScript type definitions
+│   └── src-tauri/                     # Rust/Tauri native layer
+│       ├── src/                       # Rust entry point (main.rs, lib.rs)
+│       ├── Cargo.toml                 # Rust dependencies
+│       └── tauri.conf.json            # Tauri window & build config
+│
+├── walissh-server/                    # Spring Boot Backend
+│   ├── walissh-server-api/            # Service interfaces & DTOs
+│   ├── walissh-server-trigger/        # REST Controllers (HTTP entry points)
+│   ├── walissh-server-case/           # ReAct use-case orchestration (5-node strategy tree)
+│   ├── walissh-server-domain/         # Core domain (Agent assembly, SSH services, Intent, Prompt)
+│   ├── walissh-server-infrastructure/ # Infrastructure (JSch SSH I/O, MyBatis DAO, AES encryption)
+│   ├── walissh-server-types/          # Shared enums, exceptions, constants
+│   └── walissh-server-app/            # Application entry, YAML configs, MCP tool registration
+│
+└── docs/
+    └── architecture-analysis.md       # Deep architecture analysis (CN)
+```
+
+### Server Module Dependency Graph
+
+```
+types ← api ← infrastructure ← domain ← case ← trigger ← app
+```
+
+---
+
+## API Reference
+
+All endpoints are prefixed with `/api/v1`.
+
+### Agent
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/query_ai_agent_config_list` | List available AI agents |
+| `POST` | `/create_session` | Create a new chat session |
+| `POST` | `/chat` | Send message (non-streaming) |
+| `POST` | `/chat_stream` | Send message (SSE streaming with ReAct events) |
+
+### SSH Connection
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/ssh/list` | List SSH connections |
+| `POST` | `/ssh/create` | Create SSH connection |
+| `POST` | `/ssh/connect` | Connect to remote server |
+| `POST` | `/ssh/disconnect` | Disconnect |
+
+### SSH Terminal
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/ssh/terminal/open` | Open interactive terminal |
+| `POST` | `/ssh/terminal/exec` | Execute single command |
+| `POST` | `/ssh/terminal/write` | Write to terminal stdin |
+| `GET` | `/ssh/terminal/read` | Read terminal output |
+| `POST` | `/ssh/terminal/resize` | Resize terminal window |
+| `POST` | `/ssh/terminal/close` | Close terminal |
+
+### SSH File
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/ssh/file/tree` | List remote directory tree |
+| `GET` | `/ssh/file/content` | Read file content |
+| `POST` | `/ssh/file/create-file` | Create file |
+| `POST` | `/ssh/file/save-content` | Save file content |
+| `POST` | `/ssh/file/upload` | Upload file |
+| `GET` | `/ssh/file/download` | Download file |
+
+### SSE Event Types (`/chat_stream`)
+
+| Event | Description |
+|-------|-------------|
+| `text` | AI-generated text content |
+| `tool_call` | Tool invocation with command details |
+| `tool_result` | Tool execution result |
+| `round_end` | End of one ReAct iteration |
+| `done` | Final result with summary |
+| `error` | Error information |
+
+---
+
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. **Fork** this repository
+2. **Create** a feature branch: `git checkout -b feature/your-feature`
+3. **Commit** your changes: `git commit -m "feat: add your feature"`
+4. **Push** to the branch: `git push origin feature/your-feature`
+5. **Open** a Pull Request
+
+### Development Guidelines
+
+- **Server**: Follow DDD layered architecture; new features should be placed in the correct module
+- **Client**: Use Zustand for state management; follow existing component patterns
+- **Commits**: Use [Conventional Commits](https://www.conventionalcommits.org/) format (`feat:`, `fix:`, `docs:`, etc.)
+- **Code Style**: Server uses Lombok; Client uses TypeScript strict mode
+
+### Reporting Issues
+
+If you find a bug or have a feature request, please [open an issue](https://github.com/sgahch/Smart-shell-agent/issues) with:
+
+- Steps to reproduce (for bugs)
+- Expected vs. actual behavior
+- Environment details (OS, JDK version, Node version, etc.)
+
+---
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+
+**Built with passion for better server operations.**
+
+</div>
