@@ -1,0 +1,42 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Java / Maven
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+
+# Node / Frontend
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Rust / Tauri
+**/src-tauri/target/
+
+# Logs
+**/data/log/
+
+# Env / Secrets
+*.env
+.env.local
+
+# Claude
+.claude/
+
+# Temp
+*.tmp
+*.bak
